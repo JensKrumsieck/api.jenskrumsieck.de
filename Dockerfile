@@ -13,5 +13,6 @@ WORKDIR /app
 ENV RUST_LOG="api=info,tower_http=info,axum::rejection=trace"
 RUN apt update && apt-get install -y ca-certificates
 COPY --from=builder /api /usr/local/bin
+VOLUME ["/app/secrets.json"]
 ENTRYPOINT ["/usr/local/bin/api"]
 EXPOSE 1337/tcp
