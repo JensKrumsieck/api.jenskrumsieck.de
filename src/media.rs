@@ -1,7 +1,7 @@
 use crate::instagram::{self, InstagramMediaData, get_instagram_posts};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::path::Path;
+use std::{env, path::Path};
 use tokio::{fs, io::AsyncWriteExt};
 use tracing::debug;
 
@@ -75,6 +75,7 @@ async fn download_image(
     url: &str,
     media_dir: &Path,
 ) -> anyhow::Result<String> {
+    let host = env::var("API_HOST")?;
     let hash = &Sha256::digest(id.as_bytes())[..16];
     let hash = hex::encode(hash);
     let ext = url
@@ -90,7 +91,7 @@ async fn download_image(
 
     if dest_path.exists() {
         debug!("Cache hit: {}", filename);
-        return Ok(format!("media/{}", filename));
+        return Ok(format!("{host}/media/{filename}"));
     }
 
     debug!("Downloading: {} -> {}", url, filename);
@@ -102,5 +103,5 @@ async fn download_image(
     let mut file = fs::File::create(&dest_path).await?;
     file.write_all(&bytes).await?;
 
-    Ok(format!("media/{}", filename))
+    Ok(format!("{host}/media/{filename}"))
 }
