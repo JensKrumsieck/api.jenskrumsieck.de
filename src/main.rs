@@ -47,6 +47,7 @@ async fn main() {
         }
     });
 
+    info!("Server runs at port 1337");
     axum::serve(listener, app)
         .await
         .expect("Could not start server");
