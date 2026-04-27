@@ -23,9 +23,16 @@ static SECRETS: Lazy<Mutex<SecretsManager>> = Lazy::new(|| {
             .save_as("secrets.json")
             .expect("Could not save SecretsManager");
     }
-    let manager = SecretsManager::load("secrets.json", KeySource::Password(&key))
-        .expect("Could not load SecretsManager");
-    Mutex::new(manager)
+    if let Ok(manager) = SecretsManager::load("secrets.json", KeySource::Password(&key)) {
+        Mutex::new(manager)
+    } else {
+        let manager = SecretsManager::new(KeySource::Password(&key))
+            .expect("Could not create new SecretsManager");
+        manager
+            .save_as("secrets.json")
+            .expect("Could not save SecretsManager");
+        Mutex::new(manager)
+    }
 });
 
 static INSTAGRAM_CACHE: OnceLock<RwLock<Vec<Media>>> = OnceLock::new();
