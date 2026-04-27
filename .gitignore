@@ -1,0 +1,6 @@
+/target
+.env
+secrets.*
+media/*
+#commit an empty folder
+!media/.gitkeep
