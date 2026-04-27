@@ -40,7 +40,7 @@ impl From<InstagramMediaData> for Media {
             media_type: value.media_type.into(),
             permalink: value.permalink,
             image_url: value.thumbnail_url.or(value.media_url).unwrap(),
-            alt_text: value.alt_text.or(value.caption).unwrap(),
+            alt_text: value.alt_text.or(value.caption.clone()).unwrap(),
             caption: value.caption.unwrap_or_default(),
             timestamp: value.timestamp,
         }
