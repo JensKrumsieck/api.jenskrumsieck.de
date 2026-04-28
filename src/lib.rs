@@ -2,6 +2,7 @@ pub mod auth;
 mod instagram;
 pub mod media;
 
+use crate::media::Media;
 use once_cell::sync::Lazy;
 use securestore::{KeySource, SecretsManager};
 use std::{
@@ -10,9 +11,12 @@ use std::{
 };
 use tokio::sync::RwLock;
 
-use crate::media::Media;
-
 pub const INSTAGRAM_GRAPH_ENDPOINT: &str = "https://graph.instagram.com/v25.0";
+
+#[derive(Clone)]
+pub struct AppState {
+    pub http_client: reqwest::Client,
+}
 
 static SECRETS: Lazy<Mutex<SecretsManager>> = Lazy::new(|| {
     let key = env::var("APP_SECRET").expect("No secure key set");
