@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{env, sync::Arc};
 
 use api::{
     AppState,
@@ -46,9 +46,12 @@ async fn main() {
 
     info!("Starting server...");
 
+    let api_host = env::var("API_HOST").expect("No Host set");
     let state = Arc::new(AppState {
         http_client: reqwest::Client::builder()
-            .user_agent("Mozilla/5.0 (compatible; API Proxy/1.0)")
+            .user_agent(format!(
+                "Mozilla/5.0 (compatible; API Proxy/1.0; +{api_host})"
+            ))
             .build()
             .expect("HTTP client"),
     });
