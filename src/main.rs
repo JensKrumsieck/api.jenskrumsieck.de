@@ -120,7 +120,7 @@ async fn openstreetmap(
     };
     let mut response_headers = HeaderMap::new();
     response_headers.insert("content-type", content_type.parse().unwrap());
-    response_headers.insert("cache-control", "public, max-age=864000".parse().unwrap());
+    response_headers.insert("cache-control", "public, max-age=31536000".parse().unwrap());
 
     (
         StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::OK),
