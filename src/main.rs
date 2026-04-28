@@ -10,13 +10,14 @@ use api::{
 use axum::{
     Json, Router,
     extract::{Path, State},
-    http::HeaderMap,
+    http::{HeaderMap, HeaderValue},
     response::{IntoResponse, Response},
     routing::get,
 };
 use dotenvy::dotenv;
-use reqwest::StatusCode;
-use tower_http::services::ServeDir;
+use reqwest::{StatusCode, header};
+use tower::ServiceBuilder;
+use tower_http::{services::ServeDir, set_header::SetResponseHeaderLayer};
 use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -59,7 +60,15 @@ async fn main() {
     let app = Router::new()
         .route("/instagram", get(instagram))
         .route("/openstreetmap/{s}/{z}/{x}/{y}", get(openstreetmap))
-        .nest_service("/media", ServeDir::new("./media"))
+        .nest_service(
+            "/media",
+            ServiceBuilder::new()
+                .layer(SetResponseHeaderLayer::overriding(
+                    header::CACHE_CONTROL,
+                    HeaderValue::from_static("public, max-age=315360000, immutable"),
+                ))
+                .service(ServeDir::new("./media")),
+        )
         .with_state(state);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:1337").await.unwrap();
 
