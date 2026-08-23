@@ -53,6 +53,7 @@ async fn main() {
             .user_agent(format!(
                 "Mozilla/5.0 (compatible; API Proxy/1.0; +{api_host})"
             ))
+            .timeout(std::time::Duration::from_secs(10))
             .build()
             .expect("HTTP client"),
     });
@@ -93,11 +94,22 @@ async fn openstreetmap(
     State(state): State<Arc<AppState>>,
     Path((s, z, x, y)): Path<(String, u32, u32, String)>,
 ) -> Response {
-    let upstream_url = format!("https://{s}.tile.openstreetmap.de/{z}/{x}/{y}");
+    if !matches!(s.as_str(), "a" | "b" | "c") {
+        return (StatusCode::BAD_REQUEST, "Invalid tile subdomain").into_response();
+    }
+    if z > 19 {
+        return (StatusCode::BAD_REQUEST, "Invalid zoom level").into_response();
+    }
+    let max_tile = 1u32 << z;
+    if x >= max_tile {
+        return (StatusCode::BAD_REQUEST, "Invalid tile coordinate").into_response();
+    }
+
+    let upstream_url = format!("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}");
     let upstream_data = match state.http_client.get(upstream_url).send().await {
         Ok(resp) => resp,
         Err(e) => {
-            error!("Failed to proxy request: {e}");
+            error!("Failed to proxy request: {e:?}");
             return (StatusCode::BAD_GATEWAY, "Failed to fetch tile").into_response();
         }
     };
@@ -118,12 +130,25 @@ async fn openstreetmap(
             return (StatusCode::BAD_GATEWAY, "Failed to read tile body").into_response();
         }
     };
+
     let mut response_headers = HeaderMap::new();
-    response_headers.insert("content-type", content_type.parse().unwrap());
-    response_headers.insert("cache-control", "public, max-age=31536000".parse().unwrap());
+    if let Ok(value) = content_type.parse() {
+        response_headers.insert("content-type", value);
+    }
+    if status.is_success() {
+        response_headers.insert(
+            "cache-control",
+            HeaderValue::from_static("public, max-age=31536000"),
+        );
+    } else {
+        response_headers.insert(
+            "cache-control",
+            HeaderValue::from_static("no-store"),
+        );
+    }
 
     (
-        StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::OK),
+        StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
         response_headers,
         bytes,
     )
