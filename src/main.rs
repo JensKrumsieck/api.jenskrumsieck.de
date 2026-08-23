@@ -54,7 +54,7 @@ async fn main() {
     let state = Arc::new(AppState {
         http_client: reqwest::Client::builder()
             .user_agent(format!(
-                "Mozilla/5.0 (compatible; API Proxy/1.0; +{api_host})"
+                "GDPR Proxy/1.0 (+{api_host}; contact: mail@jenskrumsieck.de)"
             ))
             .timeout(std::time::Duration::from_secs(10))
             .build()
