@@ -1,4 +1,4 @@
-use std::{env, sync::Arc};
+use std::{env, path::PathBuf, sync::Arc};
 
 use api::{
     AppState,
@@ -16,10 +16,13 @@ use axum::{
 };
 use dotenvy::dotenv;
 use reqwest::{StatusCode, header};
+use tokio::fs;
 use tower::ServiceBuilder;
 use tower_http::{services::ServeDir, set_header::SetResponseHeaderLayer};
 use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+const TILE_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(30 * 24 * 60 * 60);
 
 #[tokio::main]
 async fn main() {
@@ -104,6 +107,29 @@ async fn openstreetmap(
     if x >= max_tile {
         return (StatusCode::BAD_REQUEST, "Invalid tile coordinate").into_response();
     }
+    //only plain numeric tile.png names are valid, reject anything else to keep the cache path safe
+    let valid_y = y
+        .strip_suffix(".png")
+        .filter(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+        .and_then(|n| n.parse::<u32>().ok())
+        .is_some_and(|n| n < max_tile);
+    if !valid_y {
+        return (StatusCode::BAD_REQUEST, "Invalid tile coordinate").into_response();
+    }
+
+    let cache_path = PathBuf::from("./tile-cache")
+        .join(&s)
+        .join(z.to_string())
+        .join(x.to_string())
+        .join(&y);
+
+    if let Ok(meta) = fs::metadata(&cache_path).await
+        && let Ok(modified) = meta.modified()
+        && modified.elapsed().is_ok_and(|age| age < TILE_CACHE_TTL)
+        && let Ok(bytes) = fs::read(&cache_path).await
+    {
+        return tile_response(StatusCode::OK, "image/png", bytes);
+    }
 
     let upstream_url = format!("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}");
     let upstream_data = match state.http_client.get(upstream_url).send().await {
@@ -131,26 +157,37 @@ async fn openstreetmap(
         }
     };
 
+    if status.is_success() {
+        if let Some(parent) = cache_path.parent()
+            && let Err(e) = fs::create_dir_all(parent).await
+        {
+            error!("Failed to create tile cache dir: {e}");
+        }
+        if let Err(e) = fs::write(&cache_path, &bytes).await {
+            error!("Failed to write tile cache: {e}");
+        }
+    }
+
+    tile_response(
+        StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
+        &content_type,
+        bytes,
+    )
+}
+
+fn tile_response(status: StatusCode, content_type: &str, bytes: impl Into<axum::body::Bytes>) -> Response {
     let mut response_headers = HeaderMap::new();
     if let Ok(value) = content_type.parse() {
         response_headers.insert("content-type", value);
     }
-    if status.is_success() {
-        response_headers.insert(
-            "cache-control",
-            HeaderValue::from_static("public, max-age=31536000"),
-        );
-    } else {
-        response_headers.insert(
-            "cache-control",
-            HeaderValue::from_static("no-store"),
-        );
-    }
+    response_headers.insert(
+        "cache-control",
+        HeaderValue::from_static(if status.is_success() {
+            "public, max-age=31536000"
+        } else {
+            "no-store"
+        }),
+    );
 
-    (
-        StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
-        response_headers,
-        bytes,
-    )
-        .into_response()
+    (status, response_headers, bytes.into()).into_response()
 }

@@ -4,3 +4,5 @@ secrets.*
 media/*
 #commit an empty folder
 !media/.gitkeep
+tile-cache/*
+!tile-cache/.gitkeep
