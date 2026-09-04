@@ -14,7 +14,7 @@ pub(crate) async fn get_instagram_posts() -> anyhow::Result<Vec<InstagramMediaDa
                 "fields",
                 "caption,media_type,media_url,permalink,thumbnail_url,timestamp,alt_text",
             ),
-            ("limit", "12"),
+            ("limit", "16"),
             ("access_token", &token),
         ])
         .send()
