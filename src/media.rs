@@ -31,6 +31,8 @@ pub struct Media {
     pub caption: String,
     pub alt_text: String,
     pub timestamp: String,
+    pub comments_count: u32,
+    pub like_count: u32,
 }
 
 impl From<InstagramMediaData> for Media {
@@ -43,6 +45,8 @@ impl From<InstagramMediaData> for Media {
             alt_text: value.alt_text.or(value.caption.clone()).unwrap(),
             caption: value.caption.unwrap_or_default(),
             timestamp: value.timestamp,
+            comments_count: value.comments_count.unwrap_or_default(),
+            like_count: value.like_count.unwrap_or_default(),
         }
     }
 }

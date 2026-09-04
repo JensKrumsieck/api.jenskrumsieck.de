@@ -12,7 +12,7 @@ pub(crate) async fn get_instagram_posts() -> anyhow::Result<Vec<InstagramMediaDa
         .query(&[
             (
                 "fields",
-                "caption,media_type,media_url,permalink,thumbnail_url,timestamp,alt_text",
+                "caption,media_type,media_url,permalink,thumbnail_url,timestamp,alt_text,comments_count,like_count",
             ),
             ("limit", "12"),
             ("access_token", &token),
@@ -50,4 +50,6 @@ pub(crate) struct InstagramMediaData {
     pub caption: Option<String>,
     pub alt_text: Option<String>,
     pub timestamp: String,
+    pub comments_count: Option<u32>,
+    pub like_count: Option<u32>,
 }
