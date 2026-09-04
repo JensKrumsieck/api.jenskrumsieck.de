@@ -9,11 +9,12 @@ use api::{
 };
 use axum::{
     Json, Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, HeaderValue},
     response::{IntoResponse, Response},
     routing::get,
 };
+use serde::Deserialize;
 use dotenvy::dotenv;
 use reqwest::{StatusCode, header};
 use tokio::fs;
@@ -88,8 +89,14 @@ async fn main() {
         .expect("Could not start server");
 }
 
-async fn instagram() -> Result<Json<Vec<Media>>, StatusCode> {
-    let media = get_instagram_media().await;
+#[derive(Deserialize)]
+struct InstagramQuery {
+    limit: Option<usize>,
+}
+
+async fn instagram(Query(query): Query<InstagramQuery>) -> Result<Json<Vec<Media>>, StatusCode> {
+    let mut media = get_instagram_media().await;
+    media.truncate(query.limit.unwrap_or(12));
     Ok(Json(media))
 }
 
